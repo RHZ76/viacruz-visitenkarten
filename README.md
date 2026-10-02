@@ -1,17 +1,15 @@
 # viacruz Visitenkarten
 
-Version 0.2.0
+Version 0.2.1
 
-Kostenlose PWA zum Erfassen, Verwalten und Durchsuchen von Visitenkarten.
+## v0.2.1
+- Sichtbarer Kartenrahmen in der Foto-Vorschau
+- OCR wertet nur einen zentralen Bereich im Visitenkartenformat aus
+- OCR-Rauschen wird vor der Anzeige gefiltert
+- Verbesserte Erkennung von Name, Firma/Praxis, Tätigkeit und Anschrift
+- Automatische Stichwörter aus erkannten Fachbegriffen
+- Telefon, E-Mail und Website sind in der Detailansicht anklickbar
+- Internetadressen aus QR-Codes sind anklickbar
+- QR-Code-Inhalte bleiben separat erhalten
 
-## v0.2.0
-- Eigene Schaltflächen „Vorderseite fotografieren“ und „Rückseite fotografieren“
-- QR-Code-Erkennung aus fotografierten Karten
-- vCard-QR-Codes können Name, Firma, Tätigkeit, Telefon, E-Mail, Website und Adresse automatisch füllen
-- Web-, Mail- und Telefon-QR-Codes werden ebenfalls erkannt
-- OCR-Texterkennung Deutsch/Englisch direkt im Browser
-- Erkannter Text wird in Kontaktfelder übernommen und vollständig durchsuchbar gespeichert
-- QR-Inhalt wird separat gespeichert und in die Volltextsuche einbezogen
-
-## Datenschutz
-Die Visitenkarten und Bilder bleiben in IndexedDB auf dem Gerät. Für die OCR werden beim ersten Einsatz die Browser-Bibliothek und Sprachdaten aus dem Internet geladen; die eigentliche Erkennung läuft im Browser.
+Hinweis: Der Rahmen hilft beim Ausrichten. Wegen der iOS-Systemkamera kann die Web-App den Rahmen nicht direkt über das Live-Kamerabild legen; der zugeschnittene Kartenbereich wird nach der Aufnahme ausgewertet.
