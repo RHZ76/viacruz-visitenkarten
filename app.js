@@ -15,8 +15,7 @@ async function analyze(blob,side){
   const original=await blobCanvas(blob);
   try{const qr=scanCanvasQR(original);if(qr){$('#qrText').value=mergeText($('#qrText').value,qr);applyQR(qr);$('#qrResult').hidden=false;$('#qrResult').innerHTML='<strong>✓ QR-Code erkannt</strong><br>'+linkQR(qr)}}catch(e){console.warn('QR',e)}
   $('#scanStatus').textContent='Texterkennung läuft …';
-  const prepared=prepareOCRCanvas(original);
-  const result=await Tesseract.recognize(prepared,'deu+eng',{logger:m=>{if(m.status==='recognizing text')$('#scanStatus').textContent='Texterkennung: '+Math.round(m.progress*100)+' %'}});
+  const result=await recognizeOriented(original);
   const raw=String(result.data?.text||'');
   const clean=cleanText(raw);
   applyText(clean,clean);
@@ -24,6 +23,44 @@ async function analyze(blob,side){
   $('#scanStatus').textContent='Erkennung abgeschlossen. Bitte Angaben prüfen.';
  }catch(e){console.error('OCR',e);$('#scanStatus').textContent='Texterkennung fehlgeschlagen. Fotos bleiben erhalten.'}
  finally{setTimeout(()=>$('#scanBox').hidden=true,1500)}
+}
+// OCR orientation detection: score four rotations before the final high-resolution pass.
+function rotatedCanvas(src,deg,maxSide=1200){
+ const quarter=deg===90||deg===270,w=quarter?src.height:src.width,h=quarter?src.width:src.height;
+ const scale=Math.min(1,maxSide/Math.max(w,h)),c=document.createElement('canvas');
+ c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));
+ const g=c.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
+ g.translate(c.width/2,c.height/2);g.rotate(deg*Math.PI/180);
+ g.drawImage(src,-src.width*scale/2,-src.height*scale/2,src.width*scale,src.height*scale);
+ return c;
+}
+function orientationScore(data){
+ const text=String(data?.text||''),lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ const good=lines.filter(x=>/[a-zäöüß]{3,}/i.test(x)&&((x.match(/[a-zäöüß]/gi)||[]).length/Math.max(x.length,1))>.55);
+ const letters=(good.join(' ').match(/[a-zäöüß]/gi)||[]).length;
+ const confidence=Math.max(0,Number(data?.confidence)||0);
+ return letters*Math.max(.2,confidence/100)+good.length*3;
+}
+async function recognizeOriented(src){
+ const worker=await Tesseract.createWorker('deu+eng',1,{logger:m=>{
+  const el=$('#scanStatus');if(el&&m.status==='recognizing text')el.textContent='Texterkennung: '+Math.round(m.progress*100)+' %';
+ }});
+ try{
+  let best=0,bestScore=-1;
+  for(const deg of [0,90,270,180]){
+   const el=$('#scanStatus');if(el)el.textContent='Bildausrichtung prüfen: '+deg+'°';
+   const preview=rotatedCanvas(src,deg,1100);
+   const test=await worker.recognize(preview);
+   const score=orientationScore(test.data);
+   if(score>bestScore){bestScore=score;best=deg}
+   preview.width=0;preview.height=0;
+  }
+  const el=$('#scanStatus');if(el)el.textContent='Text in korrekter Ausrichtung lesen …';
+  const oriented=rotatedCanvas(src,best,3400);
+  const result=await worker.recognize(oriented);
+  oriented.width=0;oriented.height=0;
+  return result;
+ }finally{await worker.terminate()}
 }
 async function blobCanvas(b){const x=await createImageBitmap(b),c=document.createElement('canvas'),max=2600,scale=Math.min(1.8,max/Math.max(x.width,x.height));c.width=Math.round(x.width*scale);c.height=Math.round(x.height*scale);const g=c.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(x,0,0,c.width,c.height);x.close?.();return c}
 function prepareOCRCanvas(src){const c=document.createElement('canvas');const max=3400,scale=Math.min(2,max/Math.max(src.width,src.height));c.width=Math.max(1,Math.round(src.width*scale));c.height=Math.max(1,Math.round(src.height*scale));const g=c.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(src,0,0,c.width,c.height);return c}
